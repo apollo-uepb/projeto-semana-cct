@@ -1,0 +1,259 @@
+================================================================================
+ESPECIFICAÇÃO: APP STREAMLIT "LANÇAMENTO DE MOEDA" (LEI DOS GRANDES NÚMEROS)
+Documento para o próximo agente gerar o código da v1
+================================================================================
+
+--------------------------------------------------------------------------------
+1. CONTEXTO
+--------------------------------------------------------------------------------
+- Projeto para a Semana de Ciência, Tecnologia e Inovação da UEPB, Campus I
+  (Campina Grande - PB). Evento na última semana de novembro de 2026.
+- Autor: aluno do 2º período de Estatística e Ciência de Dados (UEPB), um dos
+  organizadores. Nível de programação iniciante/intermediário: o código deve
+  ser LIMPO, BEM COMENTADO EM PORTUGUÊS e fácil de entender e modificar.
+- Público: estudantes do CCT (estatística, matemática, química, química
+  industrial, computação, engenharia sanitária e ambiental). Nem todos
+  conhecem estatística. Atenção por pessoa na feira: ~2 minutos.
+- Tema: Probabilidade I, abordagem FREQUENTISTA. Mostrar na prática a Lei dos
+  Grandes Números: a frequência relativa de caras converge para 0,5 quando
+  o número de lançamentos cresce.
+- Ideia central/provocação: comparar a intuição ("é sempre 50%") com o que
+  realmente acontece (o acaso pesa muito com poucos lançamentos).
+- Acesso: deploy no Streamlit Community Cloud (URL pública) + QR code.
+  Será usado em TV/computador no estande (tela deitada) E no celular.
+- Idioma da interface e do código/comentários: PORTUGUÊS (Brasil).
+
+--------------------------------------------------------------------------------
+2. REGRAS DE ESTILO (DEFINIDAS PELO USUÁRIO)
+--------------------------------------------------------------------------------
+- SEM gradientes em nenhum lugar. Tudo flat.
+- Padrão: fundo BRANCO, texto PRETO, AZUL apenas como destaque (highlight).
+- O usuário vai estilizar depois; então o CSS deve ser mínimo, organizado e
+  fácil de localizar (um bloco de CSS comentado, com variáveis para as cores).
+- Configurar em .streamlit/config.toml: base = "light", primaryColor azul,
+  backgroundColor branco, textColor preto.
+- Gráfico: template "plotly_white"; linha de convergência AZUL; linha
+  tracejada em 0,5 PRETA (ou cinza escuro). Evitar verde+vermelho juntos
+  (daltonismo).
+- Moeda: círculo chapado, borda azul, texto "CARA"/"COROA" (sem imagem).
+
+--------------------------------------------------------------------------------
+3. FUNCIONALIDADES DA V1
+--------------------------------------------------------------------------------
+3.1 Abertura (texto estático no topo)
+  - Título do app.
+  - Pergunta provocativa: "Quantas vezes é preciso lançar uma moeda para ter
+    certeza de que ela é justa?"
+  - (Nota para o agente: nenhum número de lançamentos "prova" que a moeda é
+    justa; só dá evidência mais forte. A resposta honesta, "nunca 100%, mas
+    quanto mais, melhor", é o gancho da conversa com o aluno. Pode haver uma
+    frase curta de apoio, sem poluir a tela.)
+  - NÃO há campo de palpite na v1.
+
+3.2 Moeda animada
+  - Animação só com CSS: giro no eixo X (várias voltas) + pequeno "pulinho"
+    para cima e queda, terminando na face sorteada.
+  - O resultado é sorteado pelo PYTHON (para alimentar session_state e
+    estatísticas); o HTML/CSS apenas anima até a face sorteada.
+  - Usar st.components.v1.html (ou equivalente da versão instalada).
+  - Aciona-se por botão grande do Streamlit "LANÇAR" (NÃO clicar na moeda;
+    isso exigiria componente bidirecional, complexo demais).
+  - Usar transform + will-change (roda na GPU), sem JavaScript.
+  - Armadilhas a tratar:
+      a) Dois lançamentos seguidos com o mesmo resultado geram HTML idêntico
+         e o Streamlit pode não reanimar: incluir o número do lançamento
+         (ex.: id/atributo/comentário único) no HTML para sempre mudar.
+      b) Só animar quando a última ação foi um lançamento individual (reset
+         e simulação em lote NÃO devem reanimar a moeda; mostrar a moeda
+         estática com a última face ou estado neutro).
+      c) Contadores atualizam enquanto a moeda ainda gira ("entrega" o
+         resultado). ACEITAR isso na v1.
+  - Sem imagens: "CARA" e "COROA" em texto.
+
+3.2.1 Contadores
+  - Caras, coroas e total de lançamentos.
+  - Frequência relativa de cada uma (ex.: 0,43 / 0,57).
+
+3.3 Controles (na página principal, NÃO na sidebar; no celular a sidebar
+    fica recolhida e ninguém acha)
+  - Botão "LANÇAR" (1 lançamento).
+  - Seletor "Simular N lançamentos" com opções: 10, 100, 1.000, 10.000 e
+    botão "Simular".
+  - Botão "Resetar" (zera tudo, inclusive fecha a revelação da binomial).
+  - Teto de lançamentos totais: 100.000 (impedir passar disso; avisar ao
+    usuário de forma simples).
+
+3.4 Gráfico de convergência (estrela do app)
+  - Eixo y: frequência relativa de caras após cada lançamento
+    (np.cumsum(resultados) / np.arange(1, n+1)).
+  - Eixo y FIXO de 0 a 1 (nunca autoajustar).
+  - Eixo x: de 1 até n, CRESCENDO junto com N (autorange). O conteúdo vai
+    "se espremendo" horizontalmente conforme n aumenta: isso é intencional
+    e faz parte da mensagem.
+  - Linha de convergência AZUL.
+  - Linha tracejada em y = 0,5 (dash="dash"), preta/cinza escuro.
+  - Poucos lançamentos (n pequeno, ~<=100): mode="lines+markers" (bolinhas
+    visíveis desde o 1º toque). Muitos: mode="lines".
+  - Texto de apoio acima/abaixo do gráfico, ex.: "Frequência de caras agora:
+    0,43. Distância de 0,5: 0,07."
+  - Toggle "escala log" no eixo x, DESLIGADO por padrão. Implementar só com
+    fig.update_xaxes(type="log"), sem recalcular dados.
+  - Plotly: config={"displayModeBar": False}, fixedrange=True nos eixos
+    (evita o gráfico "roubar" o scroll no celular).
+  - Altura fixa e compacta (~250 a 300 px) para caber sem scroll.
+
+3.5 Probabilidade do resultado exato (revelação sob demanda)
+  - Botão "E qual a chance de ter dado exatamente esse resultado?"
+    DESABILITADO (disabled=True) até haver pelo menos 1 lançamento.
+  - Ao clicar, mostra no MESMO espaço do gráfico de convergência, alternando
+    entre as duas visões (ex.: st.toggle ou botões "Convergência /
+    Probabilidade"). Isso garante que nunca precise de scroll no modo deitado.
+  - Conteúdo da revelação:
+      * Frase em linguagem simples: "Com 10 lançamentos, a chance de dar
+        exatamente 6 caras é 20,5%."
+      * Gráfico de barras da distribuição binomial (n, p=0,5) com a barra do
+        resultado da pessoa (k caras) DESTACADA em azul (demais barras em
+        cinza claro/azul claro, sem gradiente).
+      * Segunda frase provocativa comparando com o "esperado": "E a chance
+        de dar 5 caras, o 'esperado'? 24,6%. Mesmo o resultado mais provável
+        acontece menos de 1 vez em 4." (valores calculados dinamicamente
+        para o n e o k atuais; adaptar texto quando n for ímpar, pois não há
+        resultado exatamente "metade").
+      * Para n pequeno vale destacar o paradoxo: com 100 lançamentos, P(exato
+        50 caras) ~ 8%; com mais lançamentos, o resultado exato fica MENOS
+        provável, mas a PROPORÇÃO se aproxima de 0,5. Distinguir as duas
+        ideias é o ponto pedagógico principal.
+  - Se a pessoa lançar/simular depois de abrir a revelação: FECHAR a revelação
+    (st.session_state["mostrar_binomial"] = False dentro da função de lançar/
+    simular/resetar). Evita mostrar dados desatualizados.
+  - Binomial SEM scipy:
+      * P(X=k) = C(n,k)/2^n calculada em log com math.lgamma:
+        logp = lgamma(n+1) - lgamma(k+1) - lgamma(n-k+1) - n*log(2); depois exp.
+      * Para n grande, plotar só uma JANELA ao redor da média (n/2), por
+        exemplo média ± 4 desvios padrão (dp = sqrt(n)/2), sempre incluindo
+        k (se k estiver fora da janela, ampliar a janela para incluí-lo ou
+        mostrar o valor só em texto).
+      * Mostrar o valor exato em texto mesmo se a barra for invisível.
+      * Decorar a função com @st.cache_data (chave: n, k).
+  - Formatar percentuais em pt-BR (vírgula decimal), sem notação científica
+    estranha; para probabilidades muito pequenas, formatar de modo legível.
+
+3.6 Árvore de possibilidades: FORA da v1 (só funciona para n<=4; ideia
+    futura: triângulo de Pascal ligado às barras da binomial).
+
+--------------------------------------------------------------------------------
+4. LAYOUT (RESPONSIVO)
+--------------------------------------------------------------------------------
+- st.set_page_config(layout="wide", page_title=..., page_icon opcional).
+- Usar st.columns: lado a lado em tela larga e empilha automaticamente no
+  celular, NA ORDEM EM QUE FOR ESCRITO NO CÓDIGO.
+
+  TELA DEITADA (TV/notebook)          CELULAR (empilhado)
+  +--------------+--------------+     +--------------+
+  |    MOEDA     | Convergência |     |    MOEDA     |
+  |  contadores  |   OU         |     |  contadores  |
+  |  [Lançar]    | Binomial     |     |  [Lançar]    |
+  |  [Simular N] | (alterna no  |     |  [Simular N] |
+  |  [Reset]     |  mesmo box)  |     |  [Reset]     |
+  +--------------+--------------+     | Convergência |
+                                      |   / Binomial |
+                                      +--------------+
+- Objetivo: em tela deitada, tudo visível SEM SCROLL, como dashboard.
+  Sem abas (escondem conteúdo). CSS para reduzir padding do topo da página
+  (block-container) e espaçamentos; gráficos com altura fixa pequena.
+- O Streamlit não garante 100% sem scroll em qualquer resolução: deixar o CSS
+  de compactação organizado e comentado para ajuste posterior após teste em
+  TV real/modo responsivo do navegador (F12).
+- Sessão independente por usuário (comportamento padrão do Streamlit). NÃO
+  fazer multiplayer, placar global ou qualquer estado compartilhado.
+
+--------------------------------------------------------------------------------
+5. OTIMIZAÇÃO (PRIORIDADE ALTA: "O SITE NÃO PODE TRAVAR")
+--------------------------------------------------------------------------------
+O gargalo é mandar pontos demais ao navegador, não o cálculo.
+- Estado enxuto em st.session_state: array NumPy int8 com os resultados
+  (1=cara, 0=coroa) + contadores. Teto de 100.000 lançamentos.
+- Simulação em lote vetorizada: np.random.default_rng().integers(0, 2, size=N,
+  dtype=np.int8); concatenar ao histórico (cuidar para não recriar arrays de
+  forma ineficiente; pode pré-alocar ou concatenar uma vez por ação).
+- Downsampling SÓ NA HORA DE PLOTAR: máximo ~300 a 500 pontos. Todos os
+  pontos enquanto n <= ~100; depois, índices espaçados geometricamente:
+  np.unique(np.geomspace(1, n, 400).astype(int)) (garantindo incluir o
+  último ponto n). Casa com a escala log e na linear só perde oscilação
+  minúscula do final.
+- Calcular o cumsum/frequência relativa só nos índices amostrados quando
+  possível (cumsum completo é barato com NumPy, ok).
+- st.fragment (Streamlit >= 1.37) nos blocos interativos, para um clique
+  reexecutar só aquela parte. Atenção: elementos fora do fragmento que
+  dependem do estado (ex.: contadores e gráfico em colunas diferentes)
+  precisam ser atualizados corretamente; se o fragment complicar a
+  consistência visual entre moeda, contadores e gráficos, usar st.rerun()
+  controlado ou agrupar tudo no mesmo fragmento. Priorizar CORREÇÃO e
+  simplicidade; documentar a escolha no código.
+- st.cache_data na função da binomial (chave n, k).
+- Plotly leve: displayModeBar False, fixedrange nos eixos, sem animações
+  do Plotly, sem frames.
+- Moeda só com CSS (transform / will-change), sem JavaScript.
+- Sem scipy (menos peso no deploy).
+- Funções pequenas e puras para facilitar leitura e teste (ex.:
+  lancar_uma_vez, simular_lote, frequencia_relativa, amostrar_indices,
+  prob_binomial, janela_binomial, montar_fig_convergencia,
+  montar_fig_binomial, html_moeda).
+
+--------------------------------------------------------------------------------
+6. ARQUIVOS A ENTREGAR
+--------------------------------------------------------------------------------
+1) app.py                    (arquivo principal; pode ficar ~250-350 linhas)
+2) requirements.txt          (streamlit, numpy, plotly; pandas só se for
+                              realmente usado; fixar streamlit >= 1.37)
+3) .streamlit/config.toml    (tema: base light, primaryColor azul, fundo
+                              branco, texto preto)
+4) README.md                 (opcional: ajustar o modelo já discutido)
+5) .gitignore                (o usuário já tem um modelo; não reentregar)
+
+Comando de execução: streamlit run app.py
+
+--------------------------------------------------------------------------------
+7. PADRÕES SUGERIDOS (O AGENTE PODE AJUSTAR SE JUSTIFICAR)
+--------------------------------------------------------------------------------
+- Opções de simulação: 10, 100, 1.000, 10.000.
+- Toggle de escala log desligado por padrão.
+- Revelação da binomial no mesmo espaço do gráfico de convergência.
+- Botão de revelação desabilitado até o 1º lançamento.
+- Teto total de 100.000 lançamentos.
+
+--------------------------------------------------------------------------------
+8. DEPLOY E OPERAÇÃO (NOTAS)
+--------------------------------------------------------------------------------
+- Streamlit Community Cloud HIBERNA apps parados: abrir o link alguns
+  minutos antes do evento para "acordar" o app.
+- requirements.txt precisa estar na raiz do repositório.
+- Não há segredos no projeto (nenhuma chave/API).
+
+--------------------------------------------------------------------------------
+9. FORA DO ESCOPO DA V1 (IDEIAS FUTURAS)
+--------------------------------------------------------------------------------
+- Moeda viciada (p ajustável) para mostrar que a frequência converge para p.
+- Várias simulações sobrepostas formando um "funil" que se estreita.
+- Faixa sombreada de expectativa ao redor de 0,5 (±1/sqrt(n)).
+- Árvore de possibilidades para n <= 4 / triângulo de Pascal.
+- Campo para o usuário digitar um palpite antes de lançar.
+- Placar geral/multiplayer: o usuário NÃO quer.
+
+--------------------------------------------------------------------------------
+10. CRITÉRIOS DE ACEITAÇÃO
+--------------------------------------------------------------------------------
+- Abrir o app, tocar em LANÇAR: a moeda gira/pula e cai na face sorteada;
+  contadores e gráfico atualizam.
+- Dois lançamentos iguais seguidos reanimam a moeda.
+- Simular 10.000 lançamentos é rápido e o gráfico continua fluido.
+- Reset zera tudo e fecha a revelação da binomial.
+- Revelação desabilitada antes do 1º lançamento; fecha ao lançar de novo.
+- Binomial correta para n grande (sem overflow) e janela legível.
+- Layout deitado sem scroll em ~1080p (com ajuste de CSS); celular em
+  coluna única, sem gráfico "roubando" o scroll.
+- Nenhum gradiente; paleta branco/preto/azul.
+- Código comentado em português, organizado em funções.
+- Ao final, o agente deve avisar o que não pôde garantir (ex.: ausência
+  total de scroll em todas as resoluções) e como ajustar.
+================================================================================
